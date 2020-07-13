@@ -11,6 +11,16 @@ import click
 import sys
 import re
 
+if sys.platform == 'darwin':
+    import unicodedata
+    def normalize(s):
+        u = s.decode('utf-8')
+        n = unicodedata.normalize('NFC', u)
+        return n.encode('utf-8')
+else:
+    def normalize(s):
+        return s
+
 def record_word():
     def write2db(w, p, r):
         conn = sqlite3.connect(dbname)
@@ -61,15 +71,37 @@ def delete_word_by_id():
         return
     delFromDb(r)
 
-def select_sql_by_word():    
+def ljust(string, length):
+    count_length = 0
+    for char in string:
+        if ord(char) <= 255:
+            count_length += 1
+        else:
+            count_length += 2
+    return string + (length-count_length) * ' '
+
+def print_db(d, w):
+    (id, word, page, rem) = d
+    (id_width, page_width, word_width, rem_width) = w
+    print(str(id).rjust(id_width), str(page).rjust(page_width), ljust(word, word_width), ljust(rem, rem_width))
+
+def print_dbtitle(w):
+    (id_width, page_width, word_width, rem_width) = w
+    print('id'.rjust(id_width), 'page'.rjust(page_width), ljust('語彙', word_width), ljust('備考', rem_width))
+
+def select_sql_by_word():
+#    w = click.prompt('Search word ', default='All')
     w = input('Search word: ')
     conn = sqlite3.connect(dbname)
     cursor = conn.cursor()
     sql = 'SELECT * FROM list WHERE WORD LIKE "%{}%";'.format(w)
+    width = (4, 4, 30, 30)
+    print_dbtitle(width)
     for row in cursor.execute(sql):
-        print(row)
+        print_db(row, width)
 
 def select_job():
+    stat_db()
     job = input('登録(r), 削除(d), 検索(s): ')
     if job not in {'r', 'd', 's', 'q'}:
         select_job()
@@ -97,6 +129,5 @@ def stat_db():
         print('sqlite3.Error occurred:', e.args[0])
 
 if __name__ == '__main__':
-    stat_db()
     select_job()
 
