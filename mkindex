@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+# index.py
+# 2020-07-13
+# manontanto
+
+dbname = 'index.db'
+ExPage = 99
+
+import sqlite3
+import click
+import sys
+import re
+
+def record_word():
+    def write2db(w, p, r):
+        conn = sqlite3.connect(dbname)
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                    INSERT INTO list VALUES(null,'{}',{},'{}');
+                    '''.format(w, p, r))
+            conn.commit()
+            print('\033[36m' +'登録' + '\033[0m')
+        except sqlite3.Error as e:
+            print('sqlite3.Error occurred:', e.args[0])
+
+    def input_word():
+        global ExPage
+        word = input('word: ')
+        if word == 'q':
+            return
+        pPage = ExPage
+        page = click.prompt('page: ', default=pPage)
+        ExPage = page
+#        page = input('page: ')
+        rem  = input('rem : ')
+        write2db(word, page, rem)
+        input_word()
+
+    input_word()
+
+def delete_word_by_id():
+    def delFromDb(d):
+        conn = sqlite3.connect(dbname)
+        cursor = conn.cursor()
+        sql ='SELECT * FROM list WHERE id = {};'.format(d)
+        cursor.execute(sql)
+        row = cursor.fetchone()
+        print(row)
+        ans = input('Delete this record. OK?[y/N] :')
+        if ans.lower() in {'y', 'yes'}:
+            try:
+                cursor.execute('DELETE FROM list WHERE id = {};'.format(d))
+                conn.commit()
+                print('1件削除')
+            except sqlite3.Error as e:
+                print('sqlite3.Error occurred:', e.args[0])
+
+    r = input('Delete ID: ')
+    if r == 'q':
+        return
+    delFromDb(r)
+
+def select_sql_by_word():    
+    w = input('Search word: ')
+    conn = sqlite3.connect(dbname)
+    cursor = conn.cursor()
+    sql = 'SELECT * FROM list WHERE WORD LIKE "%{}%";'.format(w)
+    for row in cursor.execute(sql):
+        print(row)
+
+def select_job():
+    job = input('登録(r), 削除(d), 検索(s): ')
+    if job not in {'r', 'd', 's', 'q'}:
+        select_job()
+    if job == 'r':
+        ExPage = 99
+        record_word()
+    elif job == 'd':
+        delete_word_by_id()
+    elif job == 's':
+        select_sql_by_word()
+    elif job == 'q':
+        sys.exit()
+    select_job()
+
+def stat_db():
+    print('DB Status: ', end='')
+    conn = sqlite3.connect(dbname)
+    cursor = conn.cursor()
+    sql = 'SELECT COUNT(*) FROM list'
+    try:
+        cursor.execute(sql)
+        c = cursor.fetchone()
+        print('現在の登録件数 = {}'.format(c[0]))
+    except sqlite3.Error as e:
+        print('sqlite3.Error occurred:', e.args[0])
+
+if __name__ == '__main__':
+    stat_db()
+    select_job()
+
