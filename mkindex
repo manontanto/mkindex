@@ -9,7 +9,6 @@ ExPage = 99
 import sqlite3
 import click
 import sys
-import re
 
 if sys.platform == 'darwin':
     import unicodedata
