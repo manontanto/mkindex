@@ -10,7 +10,6 @@ ExPage = 99
 import sqlite3
 import click
 import sys
-<<<<<<< HEAD
 import os
 
 def checkdb():
