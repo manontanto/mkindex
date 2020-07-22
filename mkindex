@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# index.py
+# mkindex
 #
 # manontanto
-
+#
 dbname = 'index.db'
-dbid = '202007150900'
+dbid = 'XXXXXXXX'
 ExPage = 99
 
 import sqlite3
@@ -41,13 +41,13 @@ def record_word():
 
     def input_word():
         global ExPage
-        word = input('word: ')
+        word = myinput('word: ')
         if word == 'q':
             return
         pPage = ExPage
         page = click.prompt('page: ', default=pPage)
         ExPage = page
-        rem  = input('rem : ')
+        rem  = myinput('rem : ')
         write2db(word, page, rem)
         input_word()
 
@@ -61,7 +61,7 @@ def delete_word_by_id():
         cursor.execute(sql)
         row = cursor.fetchone()
         print(row)
-        ans = input('Delete this record. OK?[y/N] :')
+        ans = myinput('Delete this record. OK?[y/N] :')
         if ans.lower() in {'y', 'yes'}:
             try:
                 cursor.execute('DELETE FROM list WHERE id = {};'.format(d))
@@ -70,7 +70,7 @@ def delete_word_by_id():
             except sqlite3.Error as e:
                 print('sqlite3.Error occurred:', e.args[0])
 
-    r = input('Delete ID: ')
+    r = myinput('Delete ID: ')
     if r == 'q':
         return
     delFromDb(r)
@@ -94,8 +94,7 @@ def print_dbtitle(w):
     print('id'.rjust(id_width), 'page'.rjust(page_width), ljust('語彙', word_width), ljust('備考', rem_width))
 
 def select_sql_by_word():
-#    w = click.prompt('Search word ', default='All')
-    w = input('Search word: ')
+    w = myinput('Search word: ')
     conn = sqlite3.connect(dbname)
     cursor = conn.cursor()
     sql = 'SELECT * FROM list WHERE WORD LIKE "%{}%";'.format(w)
@@ -108,8 +107,6 @@ def edit_word_by_id():
     def updatedb(j, nd):
         conn = sqlite3.connect(dbname)
         cursor = conn.cursor()
-        # j = w,p,r    d = newdata
-        # col = [ 'w':'word, 'p':'page','r':'remark']
         sql = 'UPDATE list set {}="{}" where id={};'.format(col.get(j),nd,id)
         cursor.execute(sql)
         conn.commit()
@@ -123,28 +120,35 @@ def edit_word_by_id():
         row = cursor.fetchone()
         print(row)
         while True:
-            job = input('語彙(w), ページ(p), 備考(r): ')
+            job = myinput('語彙(w), ページ(p), 備考(r): ')
             if job in {'w', 'p', 'r', 'q'}:
                 break
         if job == 'q':
             return
-        newdata = input(str(row[list(col.keys()).index(job) + 1]) + ' : ')
-        # list(col.keys()) = ['w', 'p', 'r']
+        newdata = myinput(str(row[list(col.keys()).index(job) + 1]) + ' : ')
         if newdata == 'q':
             return
         updatedb(job, newdata)
         editWord()
 
     col = { 'w':'word', 'p':'page', 'r':'remark'}
-    id = input('Edit ID: ')
+    id = myinput('Edit ID: ')
     if id == 'q':
         return
     editWord()
 
+def myinput(s):
+    try:
+        r = input(s)
+    except KeyboardInterrupt:
+        print('\n')
+        sys.exit()
+    return r
+
 def select_job():
     stat_db()
     while True:
-        job = input('登録(r), 削除(d), 検索(s), 編集(m): ')
+        job = myinput('登録(r), 削除(d), 検索(s), 編集(m): ')
         if job in {'r', 'd', 's', 'm', 'q'}:
             break
     if job == 'r':
