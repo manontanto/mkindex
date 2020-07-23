@@ -87,11 +87,13 @@ def ljust(string, length):
 def print_db(d, w):
     (id, word, page, rem) = d
     (id_width, page_width, word_width, rem_width) = w
-    print(str(id).rjust(id_width), str(page).rjust(page_width), ljust(word, word_width), ljust(rem, rem_width))
+    print(str(id).rjust(id_width), str(page).rjust(page_width),\
+            ljust(word, word_width), ljust(rem, rem_width))
 
 def print_dbtitle(w):
     (id_width, page_width, word_width, rem_width) = w
-    print('id'.rjust(id_width), 'page'.rjust(page_width), ljust('語彙', word_width), ljust('備考', rem_width))
+    print('id'.rjust(id_width), 'page'.rjust(page_width),\
+            ljust('語彙', word_width), ljust('備考', rem_width))
 
 def select_sql_by_word():
     w = myinput('Search word: ')
