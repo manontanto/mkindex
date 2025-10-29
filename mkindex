@@ -1,39 +1,65 @@
 #!/usr/bin/env python3
+#
 # mkindex
 #
-# manontanto
-#
-dbname = 'index.db'
-dbid = 'XXXXXXXX'
-ExPage = 99
+'''
+------------
+ id  page  word
+  4   24   avoir - comment
+------------
 
+'''
 import sqlite3
 import click
 import sys
 import os
+from datetime import datetime
 
-def checkdb():
-    if not os.path.isfile(dbname):
-        print('\033[31m' + 'No index.db.' + '\033[0m')
-        sys.exit()
-    conn = sqlite3.connect(dbname)
+DBNAME = 'index.db'
+DBID = 'XXXXX'
+LOGPATH = 'YYYYY'
+ExPage = 999
+
+
+def createdb():
+    conn = sqlite3.connect(DBNAME)
+    c = conn.cursor()
+
+    c.execute('CREATE TABLE id (id TEXT NOT NULL);')
+    c.execute('INSERT INTO id VALUES("{}");'.format(dbid))
+    ddl = '''
+         CREATE TABLE list (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         word TEXT NOT NULL,
+         page INTEGER NOT NULL);
+    '''
+    c.execute(ddl)
+
+    conn.commit()
+    conn.close()    
+
+def checkdbid():
+    if not os.path.isfile(DBNAME):
+        print('\033[31m' + 'No ' + dbname  + ' found.' + '\033[0m')
+        print('Create it.')
+        createdb()
+    conn = sqlite3.connect(DBNAME)
     cursor = conn.cursor()
     cursor.execute('select id from id;')
     row = cursor.fetchone()
     if row[0] == dbid:
         return
     else:
-        print('\033[31mNo database for me.\033[0m')
-        sys.exit()
+        sys.exit('\033[31mNo database for me.\033[0m')
 
 def record_word():
-    def write2db(w, p, r):
-        conn = sqlite3.connect(dbname)
+    def write2db(w, p):
+        conn = sqlite3.connect(DBNAME)
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                    INSERT INTO list VALUES(null,'{}',{},'{}');
-                    '''.format(w, p, r))
+                    INSERT INTO list VALUES(null,"{}","{}");
+                    '''.format(w, p))
             conn.commit()
             print('\033[36m' +'登録' + '\033[0m')
         except sqlite3.Error as e:
@@ -41,21 +67,28 @@ def record_word():
 
     def input_word():
         global ExPage
+
+        print("\n検索(s) 終了(q)")
         word = myinput('word: ')
-        if word == 'q':
+        if word == '':
+            return
+        if word.strip().lower() == 'q':
+            return
+        if word.strip().lower() == 's':
+            select_sql_by_word()
+            input_word()
             return
         pPage = ExPage
         page = click.prompt('page: ', default=pPage)
         ExPage = page
-        rem  = myinput('rem : ')
-        write2db(word, page, rem)
+        write2db(word, page)
         input_word()
 
     input_word()
 
 def delete_word_by_id():
     def delFromDb(d):
-        conn = sqlite3.connect(dbname)
+        conn = sqlite3.connect(DBNAME)
         cursor = conn.cursor()
         sql ='SELECT * FROM list WHERE id = {};'.format(d)
         cursor.execute(sql)
@@ -84,30 +117,41 @@ def ljust(string, length):
             count_length += 2
     return string + (length-count_length) * ' '
 
-def print_db(d, w):
-    (id, word, page, rem) = d
-    (id_width, page_width, word_width, rem_width) = w
-    print(str(id).rjust(id_width), str(page).rjust(page_width),\
-            ljust(word, word_width), ljust(rem, rem_width))
-
-def print_dbtitle(w):
-    (id_width, page_width, word_width, rem_width) = w
-    print('id'.rjust(id_width), 'page'.rjust(page_width),\
-            ljust('語彙', word_width), ljust('備考', rem_width))
+def print_db(d, f):
+    print("{0[0]:>4} {0[2]:>4}   {0[1]}".format(d))
+    f.write("{0[0]:>4} {0[2]:>4}   {0[1]}\n".format(d))
 
 def select_sql_by_word():
-    w = myinput('Search word: ')
-    conn = sqlite3.connect(dbname)
+    w = myinput('Search word|id|q: ')
+    if w.isdecimal():
+        sql_str = 'SELECT * FROM list WHERE id={0};'
+    elif w == ('q' or 'ｑ'):
+        return
+    else:
+        sql_str = 'SELECT * FROM list WHERE word LIKE "%{0}%";'
+
+    conn = sqlite3.connect(DBNAME)
     cursor = conn.cursor()
-    sql = 'SELECT * FROM list WHERE WORD LIKE "%{}%";'.format(w)
-    width = (4, 4, 30, 30)
-    print_dbtitle(width)
-    for row in cursor.execute(sql):
-        print_db(row, width)
+    sql = sql_str.format(w)
+    cursor.execute(sql)
+    hits = cursor.fetchall()
+    if len(hits) == 0:
+        print()
+        print(f'No data for {w}.')
+        print()
+    else:
+        print("-------------------")
+        print("  id  page  word")
+        print("-------------------")
+        with open(LOGPATH, "w", encoding="utf-8") as f:
+            for row in hits:
+                print_db(row, f)
+
+    select_sql_by_word()
 
 def edit_word_by_id():
     def updatedb(j, nd):
-        conn = sqlite3.connect(dbname)
+        conn = sqlite3.connect(DBNAME)
         cursor = conn.cursor()
         sql = 'UPDATE list set {}="{}" where id={};'.format(col.get(j),nd,id)
         cursor.execute(sql)
@@ -115,15 +159,15 @@ def edit_word_by_id():
         return
 
     def editWord():
-        conn = sqlite3.connect(dbname)
+        conn = sqlite3.connect(DBNAME)
         cursor = conn.cursor()
         sql = 'SELECT * FROM list WHERE id = {};'.format(id)
         cursor.execute(sql)
         row = cursor.fetchone()
         print(row)
         while True:
-            job = myinput('語彙(w), ページ(p), 備考(r): ')
-            if job in {'w', 'p', 'r', 'q'}:
+            job = myinput('語彙(w), ページ(p), 終了(q): ')
+            if job in {'w', 'p', 'q'}:
                 break
         if job == 'q':
             return
@@ -133,28 +177,36 @@ def edit_word_by_id():
         updatedb(job, newdata)
         editWord()
 
-    col = { 'w':'word', 'p':'page', 'r':'remark'}
-    id = myinput('Edit ID: ')
-    if id == 'q':
-        return
-    editWord()
+    col = { 'w':'word', 'p':'page'}
+    print("\n検索(s) 終了(q)")
+    while True:
+        id = myinput('id: ')
+        if id == 'q':
+            return
+        if id == 's':
+            select_sql_by_word()
+            edit_word_by_id()
+            return
+        try:
+            d = int(id)
+        except ValueError:
+            continue
+        editWord()
 
 def myinput(s):
     try:
         r = input(s)
     except KeyboardInterrupt:
-        print('\n')
-        sys.exit()
+        sys.exit('\n')
     return r
 
 def select_job():
     stat_db()
     while True:
-        job = myinput('登録(r), 削除(d), 検索(s), 編集(m): ')
+        job = myinput('登録(r), 削除(d), 検索(s), 編集(m), 終了(q): ')
         if job in {'r', 'd', 's', 'm', 'q'}:
             break
     if job == 'r':
-        ExPage = 99
         record_word()
     elif job == 'd':
         delete_word_by_id()
@@ -167,8 +219,8 @@ def select_job():
     select_job()
 
 def stat_db():
-    print('DB Status: ', end='')
-    conn = sqlite3.connect(dbname)
+    print('\nDB Status: ', end='')
+    conn = sqlite3.connect(DBNAME)
     cursor = conn.cursor()
     sql = 'SELECT COUNT(*) FROM list'
     try:
@@ -179,6 +231,6 @@ def stat_db():
         print('sqlite3.Error occurred:', e.args[0])
 
 if __name__ == '__main__':
-    checkdb()
+    checkdbid()
     select_job()
 
